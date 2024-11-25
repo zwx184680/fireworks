@@ -19,13 +19,19 @@
             left: 50%;
             transform: translate(-50%, -50%);
             padding: 15px 30px;
-            font-size: 20px;
+            font-size: 24px;
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: 2px solid white;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
             z-index: 100;
+            font-family: "Microsoft YaHei", sans-serif;
+            transition: all 0.3s ease;
+        }
+        #startButton:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%) scale(1.05);
         }
     </style>
 </head>
@@ -41,14 +47,14 @@
 
         // 音效
         const audio = {
-            explosion: new Audio('https://assets.mixkit.co/active_storage/sfx/2161/2161-preview.mp3'),
-            launch: new Audio('https://assets.mixkit.co/active_storage/sfx/1797/1797-preview.mp3')
+            explosion: new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=firework-89698.mp3'),
+            launch: new Audio('https://cdn.pixabay.com/download/audio/2021/08/09/audio_88347d14d4.mp3?filename=firework-launch-1-89597.mp3')
         };
 
-        // 预加载多个音效实例以支持同时播放
+        // 预加载多个音效实例
         const audioPool = {
-            explosion: Array.from({ length: 5 }, () => new Audio('https://assets.mixkit.co/active_storage/sfx/2161/2161-preview.mp3')),
-            launch: Array.from({ length: 5 }, () => new Audio('https://assets.mixkit.co/active_storage/sfx/1797/1797-preview.mp3')),
+            explosion: Array.from({ length: 5 }, () => new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=firework-89698.mp3')),
+            launch: Array.from({ length: 5 }, () => new Audio('https://cdn.pixabay.com/download/audio/2021/08/09/audio_88347d14d4.mp3?filename=firework-launch-1-89597.mp3')),
             currentIndex: 0
         };
 
@@ -57,8 +63,8 @@
             
             const sound = audioPool[type][audioPool.currentIndex];
             sound.currentTime = 0;
-            sound.volume = type === 'explosion' ? 0.4 : 0.2;
-            sound.play();
+            sound.volume = type === 'explosion' ? 0.3 : 0.2;
+            sound.play().catch(() => {});
             
             audioPool.currentIndex = (audioPool.currentIndex + 1) % audioPool[type].length;
         }
@@ -66,7 +72,6 @@
         startButton.addEventListener('click', () => {
             audioEnabled = true;
             startButton.style.display = 'none';
-            // 播放一个静音音频来解除浏览器对自动播放的限制
             audio.launch.volume = 0;
             audio.launch.play().catch(() => {});
         });
@@ -80,7 +85,7 @@
 
         // 文字粒子位置计算函数
         function getTextParticles(text, x, y) {
-            ctx.font = '60px Arial';
+            ctx.font = '80px "Microsoft YaHei"';
             ctx.fillStyle = 'white';
             const metrics = ctx.measureText(text);
             const textWidth = metrics.width;
@@ -88,17 +93,17 @@
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = textWidth;
-            tempCanvas.height = 100;
+            tempCanvas.height = 120;
             
-            tempCtx.font = '60px Arial';
+            tempCtx.font = '80px "Microsoft YaHei"';
             tempCtx.fillStyle = 'white';
-            tempCtx.fillText(text, 0, 60);
+            tempCtx.fillText(text, 0, 80);
             
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const pixels = imageData.data;
             const particles = [];
             
-            const gap = 4;
+            const gap = 3;
             
             for (let y = 0; y < tempCanvas.height; y += gap) {
                 for (let x = 0; x < tempCanvas.width; x += gap) {
@@ -106,7 +111,7 @@
                     if (pixels[i + 3] > 0) {
                         particles.push({
                             x: x - textWidth / 2,
-                            y: y - 30
+                            y: y - 40
                         });
                     }
                 }
@@ -114,8 +119,7 @@
             
             return particles;
         }
-
-        class Firework {
+                class Firework {
             constructor(x, y, targetX, targetY, isText = false) {
                 this.x = x;
                 this.y = y;
@@ -153,8 +157,7 @@
 
                 for (let i = this.particles.length - 1; i >= 0; i--) {
                     const particle = this.particles[i];
-                    particle.update();
-                    if (particle.alpha <= 0) {
+                    if (!particle.update()) {
                         this.particles.splice(i, 1);
                     }
                 }
@@ -193,7 +196,7 @@
                         ));
                     }
                 } else {
-                    const particleCount = 100;
+                    const particleCount = 120;
                     const angleStep = (Math.PI * 2) / particleCount;
                     for (let i = 0; i < particleCount; i++) {
                         const angle = angleStep * i;
@@ -222,8 +225,9 @@
                 this.color = color;
                 this.alpha = 1;
                 this.progress = 0;
-                this.easing = isText ? 0.08 : 0.02;
-                this.gravity = isText ? 0.1 : 0.2;
+                this.easing = isText ? 0.03 : 0.02;
+                this.gravity = isText ? 0.05 : 0.2;
+                this.decay = isText ? 0.006 : 0.01;
             }
 
             update() {
@@ -233,19 +237,20 @@
                     this.x = this.startX + (this.targetX - this.startX) * this.progress;
                     this.y = this.startY + (this.targetY - this.startY) * this.progress + 
                             this.gravity * this.progress * this.progress * 30;
+                    this.alpha = Math.max(0, 1 - this.progress * this.decay * 100);
                 } else {
                     this.x = this.startX + (this.targetX - this.startX) * this.progress;
                     this.y = this.startY + (this.targetY - this.startY) * this.progress + 
                             this.gravity * this.progress * this.progress * 100;
+                    this.alpha = Math.max(0, 1 - this.progress);
                 }
                 
-                this.alpha = Math.max(0, 1 - this.progress);
                 return this.alpha > 0;
             }
 
             draw() {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, this.isText ? 1.5 : 2, 0, Math.PI * 2);
                 ctx.fillStyle = `${this.color}${Math.floor(this.alpha * 255).toString(16).padStart(2, '0')}`;
                 ctx.fill();
             }
@@ -253,7 +258,7 @@
 
         const fireworks = [];
         let lastAutoLaunch = 0;
-        const AUTO_LAUNCH_INTERVAL = 1800;
+        const AUTO_LAUNCH_INTERVAL = 2500;
         let isTextFirework = true;
 
         function autoLaunchFirework() {
