@@ -13,251 +13,160 @@
         canvas {
             display: block;
         }
-        #settingsButton {
-            position: fixed;
-            right: 20px;
-            top: 20px;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            z-index: 100;
-        }
-        #settingsPanel {
-            position: fixed;
-            right: 20px;
-            top: 70px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            z-index: 100;
-        }
-        #textInput {
-            width: 200px;
-            padding: 8px;
-            margin: 10px 0;
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid white;
-            border-radius: 5px;
-        }
-        #applyButton {
-            padding: 8px 15px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <button id="settingsButton">自定义文字</button>
-    <div id="settingsPanel">
-        <input type="text" id="textInput" value="2025新年快乐">
-        <button id="applyButton">确定</button>
-    </div>
 
     <script>
+        // 获取canvas元素
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        let customText = "2025新年快乐";
 
-        // 设置画布尺寸
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        // 设置canvas尺寸
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 存储所有烟花
+        const fireworks = [];
 
         // 烟花类
         class Firework {
-            constructor(x, y, targetX, targetY, isText) {
-                this.x = x;
-                this.y = y;
-                this.startX = x;
-                this.startY = y;
-                this.targetX = targetX;
-                this.targetY = targetY;
-                this.isText = isText;
-                this.distance = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2));
-                this.angle = Math.atan2(targetY - y, targetX - x);
-                this.speed = 6;
+            constructor() {
+                // 起始位置（底部随机位置）
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height;
+                
+                // 目标位置（上半部分随机位置）
+                this.targetX = Math.random() * canvas.width;
+                this.targetY = Math.random() * (canvas.height * 0.5);
+                
+                // 颜色
+                this.color = `hsl(${Math.random() * 360}, 50%, 50%)`;
+                
+                // 粒子大小
+                this.size = 2;
+                
+                // 速度
+                this.speed = 2;
+                
+                // 重力
+                this.gravity = 0.1;
+                
+                // 计算移动方向
+                const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+                this.velocityX = Math.cos(angle) * this.speed;
+                this.velocityY = Math.sin(angle) * this.speed;
+                
+                // 是否已爆炸
+                this.exploded = false;
+                
+                // 爆炸后的粒子
                 this.particles = [];
-                this.alive = true;
-                this.colors = ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
             }
 
             update() {
-                if (this.alive) {
-                    const vx = Math.cos(this.angle) * this.speed;
-                    const vy = Math.sin(this.angle) * this.speed;
-                    this.x += vx;
-                    this.y += vy;
-
-                    const distanceTraveled = Math.sqrt(Math.pow(this.x - this.startX, 2) + Math.pow(this.y - this.startY, 2));
-                    if (distanceTraveled >= this.distance) {
+                if (!this.exploded) {
+                    // 移动烟花
+                    this.x += this.velocityX;
+                    this.y += this.velocityY;
+                    
+                    // 检查是否到达目标位置
+                    const distance = Math.hypot(this.targetX - this.x, this.targetY - this.y);
+                    if (distance < 5) {
                         this.explode();
                     }
-                }
-
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    if (!this.particles[i].update()) {
-                        this.particles.splice(i, 1);
+                } else {
+                    // 更新爆炸粒子
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const p = this.particles[i];
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += this.gravity;
+                        p.alpha -= 0.01;
+                        
+                        if (p.alpha <= 0) {
+                            this.particles.splice(i, 1);
+                        }
                     }
-                }
-
-                return this.alive || this.particles.length > 0;
-            }
-
-            draw() {
-                if (this.alive) {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                }
-
-                for (const particle of this.particles) {
-                    particle.draw();
                 }
             }
 
             explode() {
-                this.alive = false;
-                const color = this.colors[Math.floor(Math.random() * this.colors.length)];
-
-                if (this.isText) {
-                    const fontSize = 60;
-                    ctx.font = `${fontSize}px Arial`;
-                    const text = customText;
-                    const metrics = ctx.measureText(text);
-                    const textWidth = metrics.width;
-                    const textHeight = fontSize;
-
-                    for (let i = 0; i < 200; i++) {
-                        const angle = (i / 200) * Math.PI * 2;
-                        const x = Math.cos(angle) * textWidth/2;
-                        const y = Math.sin(angle) * textHeight/2;
-                        this.particles.push(new Particle(this.x, this.y, x, y, color));
-                    }
-                } else {
-                    for (let i = 0; i < 100; i++) {
-                        const angle = (i / 100) * Math.PI * 2;
-                        const velocity = Math.random() * 5 + 2;
-                        const x = Math.cos(angle) * velocity;
-                        const y = Math.sin(angle) * velocity;
-                        this.particles.push(new Particle(this.x, this.y, x, y, color));
-                    }
+                this.exploded = true;
+                // 创建爆炸粒子
+                for (let i = 0; i < 100; i++) {
+                    const angle = (Math.PI * 2 / 100) * i;
+                    const velocity = Math.random() * 3 + 2;
+                    this.particles.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: Math.cos(angle) * velocity,
+                        vy: Math.sin(angle) * velocity,
+                        alpha: 1
+                    });
                 }
-            }
-        }
-
-        // 粒子类
-        class Particle {
-            constructor(x, y, vx, vy, color) {
-                this.x = x;
-                this.y = y;
-                this.vx = vx;
-                this.vy = vy;
-                this.color = color;
-                this.alpha = 1;
-                this.gravity = 0.1;
-                this.friction = 0.99;
-            }
-
-            update() {
-                this.vx *= this.friction;
-                this.vy *= this.friction;
-                this.vy += this.gravity;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.alpha -= 0.01;
-                return this.alpha > 0;
             }
 
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = `${this.color}${Math.floor(this.alpha * 255).toString(16).padStart(2, '0')}`;
-                ctx.fill();
+                if (!this.exploded) {
+                    // 绘制上升的烟花
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                } else {
+                    // 绘制爆炸粒子
+                    for (const p of this.particles) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, this.size, 0, Math.PI * 2);
+                        ctx.fillStyle = `${this.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
+                        ctx.fill();
+                    }
+                }
             }
         }
 
-        const fireworks = [];
-        let lastAutoLaunch = 0;
-
-        function autoLaunchFirework() {
+        // 自动发射烟花
+        let lastFireworkTime = 0;
+        function addFirework() {
             const now = Date.now();
-            if (now - lastAutoLaunch > 1500) {
-                const startX = Math.random() * canvas.width;
-                const targetX = canvas.width / 2 + (Math.random() - 0.5) * 200;
-                const targetY = canvas.height * 0.3;
-                
-                fireworks.push(new Firework(
-                    startX,
-                    canvas.height,
-                    targetX,
-                    targetY,
-                    Math.random() < 0.5
-                ));
-                
-                lastAutoLaunch = now;
+            if (now - lastFireworkTime > 1000) { // 每秒发射一个烟花
+                fireworks.push(new Firework());
+                lastFireworkTime = now;
             }
         }
 
+        // 动画循环
         function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            // 添加半透明黑色层制造拖尾效果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            autoLaunchFirework();
+            // 添加新烟花
+            addFirework();
 
+            // 更新和绘制所有烟花
             for (let i = fireworks.length - 1; i >= 0; i--) {
-                if (!fireworks[i].update()) {
+                fireworks[i].update();
+                fireworks[i].draw();
+                
+                // 移除已完全消失的烟花
+                if (fireworks[i].exploded && fireworks[i].particles.length === 0) {
                     fireworks.splice(i, 1);
-                } else {
-                    fireworks[i].draw();
                 }
             }
 
+            // 继续动画循环
             requestAnimationFrame(animate);
         }
 
-        // 设置面板控制
-        const settingsButton = document.getElementById('settingsButton');
-        const settingsPanel = document.getElementById('settingsPanel');
-        const textInput = document.getElementById('textInput');
-        const applyButton = document.getElementById('applyButton');
-
-        settingsButton.addEventListener('click', () => {
-            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
-        });
-
-        applyButton.addEventListener('click', () => {
-            customText = textInput.value || "2025新年快乐";
-            settingsPanel.style.display = 'none';
-        });
-
-        // 点击放烟花
+        // 点击发射烟花
         canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            fireworks.push(new Firework(
-                Math.random() * canvas.width,
-                canvas.height,
-                x,
-                y,
-                Math.random() < 0.5
-            ));
+            fireworks.push(new Firework());
         });
 
-        // 启动动画
+        // 开始动画
         animate();
     </script>
 </body>
