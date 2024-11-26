@@ -23,6 +23,7 @@
             color: white;
             border-radius: 5px;
             z-index: 100;
+            font-family: "Microsoft YaHei", sans-serif;
         }
     </style>
 </head>
@@ -36,61 +37,46 @@
         const textInput = document.getElementById('textInput');
         let text = textInput.value;
 
-        // 设置canvas尺寸
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // 存储所有烟花
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
         const fireworks = [];
 
-        // 烟花类
         class Firework {
             constructor() {
-                // 起始位置（底部随机位置）
                 this.x = Math.random() * canvas.width;
                 this.y = canvas.height;
-                
-                // 目标位置（上半部分随机位置）
                 this.targetX = canvas.width / 2;
                 this.targetY = canvas.height * 0.3;
-                
-                // 颜色
                 this.color = `hsl(${Math.random() * 360}, 50%, 50%)`;
-                
-                // 大小
                 this.size = 2;
-                
-                // 速度
                 this.speed = 2;
-                
-                // 重力
                 this.gravity = 0.1;
-                
-                // 计算移动方向
                 const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
                 this.velocityX = Math.cos(angle) * this.speed;
                 this.velocityY = Math.sin(angle) * this.speed;
-                
-                // 是否已爆炸
                 this.exploded = false;
-                
-                // 爆炸后的粒子
                 this.particles = [];
+                this.textParticles = [];
+                this.textAlpha = 1;
             }
 
             update() {
                 if (!this.exploded) {
-                    // 移动烟花
                     this.x += this.velocityX;
                     this.y += this.velocityY;
                     
-                    // 检查是否到达目标位置
                     const distance = Math.hypot(this.targetX - this.x, this.targetY - this.y);
                     if (distance < 5) {
                         this.explode();
                     }
                 } else {
-                    // 更新爆炸粒子
+                    // 更新普通粒子
                     for (let i = this.particles.length - 1; i >= 0; i--) {
                         const p = this.particles[i];
                         p.x += p.vx;
@@ -101,6 +87,11 @@
                         if (p.alpha <= 0) {
                             this.particles.splice(i, 1);
                         }
+                    }
+
+                    // 更新文字透明度
+                    if (this.textAlpha > 0) {
+                        this.textAlpha -= 0.005; // 文字淡出速度
                     }
                 }
             }
@@ -119,17 +110,10 @@
                         alpha: 1
                     });
                 }
-
-                // 显示文字
-                ctx.font = '48px Arial';
-                ctx.fillStyle = this.color;
-                ctx.textAlign = 'center';
-                ctx.fillText(text, this.x, this.y);
             }
 
             draw() {
                 if (!this.exploded) {
-                    // 绘制上升的烟花
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fillStyle = this.color;
@@ -142,55 +126,64 @@
                         ctx.fillStyle = `${this.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
                         ctx.fill();
                     }
+
+                    // 在爆炸位置绘制文字
+                    if (this.textAlpha > 0) {
+                        ctx.save();
+                        ctx.font = 'bold 32px "Microsoft YaHei"';
+                        ctx.fillStyle = `${this.color}${Math.floor(this.textAlpha * 255).toString(16).padStart(2, '0')}`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(text, this.x, this.y);
+                        ctx.restore();
+                    }
                 }
             }
         }
 
-        // 自动发射烟花
         let lastFireworkTime = 0;
         function addFirework() {
             const now = Date.now();
-            if (now - lastFireworkTime > 2000) { // 每2秒发射一个烟花
+            if (now - lastFireworkTime > 2000) {
                 fireworks.push(new Firework());
                 lastFireworkTime = now;
             }
         }
 
-        // 监听文字输入
         textInput.addEventListener('change', () => {
             text = textInput.value;
         });
 
-        // 动画循环
         function animate() {
-            // 添加半透明黑色层制造拖尾效果
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 添加新烟花
             addFirework();
 
-            // 更新和绘制所有烟花
             for (let i = fireworks.length - 1; i >= 0; i--) {
                 fireworks[i].update();
                 fireworks[i].draw();
                 
-                // 移除已完全消失的烟花
-                if (fireworks[i].exploded && fireworks[i].particles.length === 0) {
+                if (fireworks[i].exploded && 
+                    fireworks[i].particles.length === 0 && 
+                    fireworks[i].textAlpha <= 0) {
                     fireworks.splice(i, 1);
                 }
             }
 
-            // 继续动画循环
             requestAnimationFrame(animate);
         }
 
-        // 点击发射烟花
         canvas.addEventListener('click', (e) => {
-            fireworks.push(new Firework());
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const firework = new Firework();
+            firework.targetX = x;
+            firework.targetY = y;
+            fireworks.push(firework);
         });
 
-        // 开始动画
         animate();
     </script>
 </body>
