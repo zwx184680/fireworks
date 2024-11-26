@@ -26,96 +26,66 @@
             z-index: 100;
             font-family: "Microsoft YaHei", sans-serif;
         }
-        #settingsPanel {
+        #textInput {
             position: fixed;
             right: 20px;
             top: 70px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            z-index: 100;
-        }
-        #textInput {
             width: 200px;
             padding: 8px;
-            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            background: rgba(255, 255, 255, 0.1);
             border: 1px solid white;
             border-radius: 5px;
-            font-family: "Microsoft YaHei", sans-serif;
+            display: none;
+            z-index: 100;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
     <button id="settingsButton">自定义文字</button>
-    <div id="settingsPanel">
-        <input type="text" id="textInput" value="2025新年快乐" maxlength="20">
-    </div>
+    <input type="text" id="textInput" value="2025新年快乐" maxlength="20">
 
     <script>
-        // ... [保持之前的canvas设置代码不变] ...
-
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
         let customText = "2025新年快乐";
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const fireworks = [];
 
         class Firework {
             constructor(isText = false) {
                 this.x = Math.random() * canvas.width;
                 this.y = canvas.height;
-                this.targetX = isText ? canvas.width / 2 : Math.random() * canvas.width;
-                this.targetY = isText ? canvas.height * 0.3 : Math.random() * (canvas.height * 0.5);
+                this.isText = isText;
+                
+                if (isText) {
+                    this.targetX = canvas.width / 2;
+                    this.targetY = canvas.height * 0.3;
+                } else {
+                    this.targetX = Math.random() * canvas.width;
+                    this.targetY = Math.random() * (canvas.height * 0.5);
+                }
+                
                 this.color = `hsl(${Math.random() * 360}, 50%, 50%)`;
                 this.size = 2;
                 this.speed = 2;
                 this.gravity = 0.1;
-                this.angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-                this.velocityX = Math.cos(this.angle) * this.speed;
-                this.velocityY = Math.sin(this.angle) * this.speed;
+                
+                const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+                this.velocityX = Math.cos(angle) * this.speed;
+                this.velocityY = Math.sin(angle) * this.speed;
+                
                 this.exploded = false;
                 this.particles = [];
-                this.isText = isText;
-            }
-
-            explode() {
-                this.exploded = true;
-                if (this.isText) {
-                    // 创建文字粒子
-                    const fontSize = 60;
-                    ctx.font = `${fontSize}px "Microsoft YaHei"`;
-                    const textWidth = ctx.measureText(customText).width;
-                    const particles = 200;
-                    
-                    for (let i = 0; i < particles; i++) {
-                        const angle = (Math.PI * 2 / particles) * i;
-                        const radius = Math.random() * textWidth / 2;
-                        const x = Math.cos(angle) * radius;
-                        const y = Math.sin(angle) * radius;
-                        
-                        this.particles.push({
-                            x: this.x,
-                            y: this.y,
-                            targetX: this.x + x,
-                            targetY: this.y + y,
-                            alpha: 1,
-                            progress: 0
-                        });
-                    }
-                } else {
-                    // 普通烟花粒子
-                    for (let i = 0; i < 100; i++) {
-                        const angle = (Math.PI * 2 / 100) * i;
-                        const velocity = Math.random() * 3 + 2;
-                        this.particles.push({
-                            x: this.x,
-                            y: this.y,
-                            vx: Math.cos(angle) * velocity,
-                            vy: Math.sin(angle) * velocity,
-                            alpha: 1
-                        });
-                    }
-                }
             }
 
             update() {
@@ -130,20 +100,10 @@
                 } else {
                     for (let i = this.particles.length - 1; i >= 0; i--) {
                         const p = this.particles[i];
-                        if (this.isText) {
-                            // 文字粒子更新
-                            p.progress += 0.02;
-                            p.x = this.x + (p.targetX - this.x) * p.progress;
-                            p.y = this.y + (p.targetY - this.y) * p.progress + 
-                                 this.gravity * p.progress * p.progress * 30;
-                            p.alpha = Math.max(0, 1 - p.progress);
-                        } else {
-                            // 普通粒子更新
-                            p.x += p.vx;
-                            p.y += p.vy;
-                            p.vy += this.gravity;
-                            p.alpha -= 0.01;
-                        }
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += this.gravity;
+                        p.alpha -= 0.01;
                         
                         if (p.alpha <= 0) {
                             this.particles.splice(i, 1);
@@ -152,10 +112,66 @@
                 }
             }
 
-            // ... [保持draw方法不变] ...
+            explode() {
+                this.exploded = true;
+                const particleCount = this.isText ? 200 : 100;
+                
+                if (this.isText) {
+                    ctx.font = '60px "Microsoft YaHei"';
+                    const textWidth = ctx.measureText(customText).width;
+                    const textHeight = 60;
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = (Math.PI * 2 / particleCount) * i;
+                        const radius = Math.random() * Math.max(textWidth, textHeight) / 2;
+                        const velocity = 2;
+                        this.particles.push({
+                            x: this.x,
+                            y: this.y,
+                            vx: Math.cos(angle) * velocity,
+                            vy: Math.sin(angle) * velocity,
+                            alpha: 1
+                        });
+                    }
+                } else {
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = (Math.PI * 2 / particleCount) * i;
+                        const velocity = Math.random() * 3 + 2;
+                        this.particles.push({
+                            x: this.x,
+                            y: this.y,
+                            vx: Math.cos(angle) * velocity,
+                            vy: Math.sin(angle) * velocity,
+                            alpha: 1
+                        });
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.exploded) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                } else {
+                    if (this.isText && this.particles.length > 0) {
+                        ctx.font = '60px "Microsoft YaHei"';
+                        ctx.fillStyle = this.color;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(customText, this.x, this.y);
+                    }
+                    
+                    for (const p of this.particles) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, this.size, 0, Math.PI * 2);
+                        ctx.fillStyle = `${this.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
+                        ctx.fill();
+                    }
+                }
+            }
         }
 
-        // 自动发射烟花
         let lastFireworkTime = 0;
         let isTextFirework = true;
 
@@ -168,20 +184,44 @@
             }
         }
 
-        // 设置面板控制
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            addFirework();
+
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update();
+                fireworks[i].draw();
+                
+                if (fireworks[i].exploded && fireworks[i].particles.length === 0) {
+                    fireworks.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            fireworks.push(new Firework(Math.random() < 0.5));
+        });
+
         const settingsButton = document.getElementById('settingsButton');
-        const settingsPanel = document.getElementById('settingsPanel');
         const textInput = document.getElementById('textInput');
 
         settingsButton.addEventListener('click', () => {
-            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+            textInput.style.display = textInput.style.display === 'none' ? 'block' : 'none';
         });
 
         textInput.addEventListener('change', () => {
             customText = textInput.value || "2025新年快乐";
+            textInput.style.display = 'none';
         });
 
-        // ... [保持其他代码不变] ...
+        animate();
     </script>
 </body>
 </html>
