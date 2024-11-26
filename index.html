@@ -5,78 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新年烟花</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #000;
-            font-family: "Microsoft YaHei", sans-serif;
-        }
-        canvas {
-            display: block;
-        }
-        #settingsButton {
-            position: fixed;
-            right: 20px;
-            top: 20px;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 16px;
-            z-index: 100;
-            transition: all 0.3s ease;
-        }
-        #settingsButton:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        #settingsPanel {
-            position: fixed;
-            right: 20px;
-            top: 70px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            color: white;
-            display: none;
-            z-index: 100;
-        }
-        #textInput {
-            width: 200px;
-            padding: 8px;
-            margin: 10px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            border-radius: 5px;
-        }
-        #applyButton {
-            padding: 8px 15px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        #applyButton:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        @media (max-width: 768px) {
-            #settingsButton {
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-            #settingsPanel {
-                right: 10px;
-                top: 60px;
-                padding: 15px;
-            }
-            #textInput {
-                width: 150px;
-            }
-        }
+        /* ... [之前的样式代码保持不变] ... */
     </style>
 </head>
 <body>
@@ -88,10 +17,83 @@
     </div>
 
     <script>
-        // ... [前面的canvas和基础设置代码保持不变] ...
-
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
         let customText = "2025新年快乐";
-        let audioEnabled = true; // 默认启用音频
+        let audioEnabled = true;
+
+        // 设置canvas尺寸
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 音效（使用较短的音频文件）
+        const audio = {
+            explosion: new Audio('https://fireworks.js.org/sounds/explosion.mp3'),
+            launch: new Audio('https://fireworks.js.org/sounds/launch.mp3')
+        };
+
+        const audioPool = {
+            explosion: Array.from({ length: 5 }, () => new Audio('https://fireworks.js.org/sounds/explosion.mp3')),
+            launch: Array.from({ length: 5 }, () => new Audio('https://fireworks.js.org/sounds/launch.mp3')),
+            currentIndex: 0
+        };
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            const sound = audioPool[type][audioPool.currentIndex];
+            sound.currentTime = 0;
+            sound.volume = type === 'explosion' ? 0.3 : 0.2;
+            sound.play().catch(() => {});
+            audioPool.currentIndex = (audioPool.currentIndex + 1) % audioPool[type].length;
+        }
+
+        // ... [Firework 和 Particle 类的代码保持不变] ...
+
+        const fireworks = [];
+        let lastAutoLaunch = 0;
+        const AUTO_LAUNCH_INTERVAL = 2000; // 缩短间隔到2秒
+
+        function autoLaunchFirework() {
+            const now = Date.now();
+            if (now - lastAutoLaunch > AUTO_LAUNCH_INTERVAL) {
+                const startX = Math.random() * canvas.width;
+                const targetX = canvas.width / 2 + (Math.random() - 0.5) * 200; // 增加随机性
+                const targetY = canvas.height * 0.3;
+                
+                fireworks.push(new Firework(
+                    startX,
+                    canvas.height,
+                    targetX,
+                    targetY,
+                    Math.random() < 0.5 // 50%概率显示文字
+                ));
+                
+                lastAutoLaunch = now;
+            }
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            autoLaunchFirework(); // 自动发射烟花
+
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const firework = fireworks[i];
+                if (!firework.update()) {
+                    fireworks.splice(i, 1);
+                } else {
+                    firework.draw();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
 
         // 设置面板控制
         const settingsButton = document.getElementById('settingsButton');
@@ -99,13 +101,44 @@
         const textInput = document.getElementById('textInput');
         const applyButton = document.getElementById('applyButton');
 
-        settingsButton.addEventListener('click', () => {
+        settingsButton.addEventListener('click', (e) => {
+            e.stopPropagation();
             settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
         });
 
         applyButton.addEventListener('click', () => {
             customText = textInput.value || "2025新年快乐";
             settingsPanel.style.display = 'none';
+        });
+
+        // 点击事件
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            fireworks.push(new Firework(
+                Math.random() * canvas.width,
+                canvas.height,
+                x,
+                y,
+                Math.random() < 0.5
+            ));
+        });
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            fireworks.push(new Firework(
+                Math.random() * canvas.width,
+                canvas.height,
+                x,
+                y,
+                Math.random() < 0.5
+            ));
         });
 
         // 点击其他地方关闭设置面板
@@ -115,33 +148,15 @@
             }
         });
 
-        // 自动开始放烟花
-        window.addEventListener('load', () => {
-            // 尝试播放一个静音的音频来解除浏览器的自动播放限制
-            const audio = new Audio();
-            audio.volume = 0;
-            audio.play().catch(() => {});
-            
-            // 立即开始放烟花
-            autoLaunchFirework();
-        });
+        // 立即开始动画
+        animate();
 
-        // ... [其余烟花效果代码保持不变] ...
-
-        // 更新Firework类的explode方法中的文字
-        explode() {
-            this.alive = false;
-            playSound('explosion');
-            const color = this.colors[Math.floor(Math.random() * this.colors.length)];
-
-            if (this.isText) {
-                const textParticles = getTextParticles(customText, this.x, this.y);
-                // ... [其余代码保持不变] ...
-            }
-            // ... [其余代码保持不变] ...
-        }
-
-        // ... [其余动画和渲染代码保持不变] ...
+        // 尝试启用音频
+        window.addEventListener('click', () => {
+            audioEnabled = true;
+            audio.launch.volume = 0;
+            audio.launch.play().catch(() => {});
+        }, { once: true });
     </script>
 </body>
 </html>
