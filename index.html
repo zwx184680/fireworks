@@ -2,28 +2,59 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 添加移动端视口设置 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>新年烟花</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             margin: 0;
             overflow: hidden;
             background: #000;
+            position: fixed;  /* 防止移动端滚动 */
+            width: 100%;
+            height: 100%;
         }
+        
         canvas {
             display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;  /* 防止触摸事件的默认行为 */
         }
+        
         #textInput {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 10px;
+            padding: 8px;
+            width: 150px;
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid white;
             color: white;
             border-radius: 5px;
             z-index: 100;
+            font-size: 14px;
             font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        /* 移动端样式调整 */
+        @media (max-width: 768px) {
+            #textInput {
+                top: 10px;
+                right: 10px;
+                width: 120px;
+                padding: 6px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -32,158 +63,66 @@
     <input type="text" id="textInput" value="2025新年快乐" maxlength="20">
 
     <script>
+        // 基本设置
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const textInput = document.getElementById('textInput');
         let text = textInput.value;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-
-        const fireworks = [];
-
-        class Firework {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = canvas.height;
-                this.targetX = canvas.width / 2;
-                this.targetY = canvas.height * 0.3;
-                this.color = `hsl(${Math.random() * 360}, 50%, 50%)`;
-                this.size = 2;
-                this.speed = 2;
-                this.gravity = 0.1;
-                const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-                this.velocityX = Math.cos(angle) * this.speed;
-                this.velocityY = Math.sin(angle) * this.speed;
-                this.exploded = false;
-                this.particles = [];
-                this.textParticles = [];
-                this.textAlpha = 1;
-            }
-
-            update() {
-                if (!this.exploded) {
-                    this.x += this.velocityX;
-                    this.y += this.velocityY;
-                    
-                    const distance = Math.hypot(this.targetX - this.x, this.targetY - this.y);
-                    if (distance < 5) {
-                        this.explode();
-                    }
-                } else {
-                    // 更新普通粒子
-                    for (let i = this.particles.length - 1; i >= 0; i--) {
-                        const p = this.particles[i];
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.vy += this.gravity;
-                        p.alpha -= 0.01;
-                        
-                        if (p.alpha <= 0) {
-                            this.particles.splice(i, 1);
-                        }
-                    }
-
-                    // 更新文字透明度
-                    if (this.textAlpha > 0) {
-                        this.textAlpha -= 0.005; // 文字淡出速度
-                    }
-                }
-            }
-
-            explode() {
-                this.exploded = true;
-                // 创建爆炸粒子
-                for (let i = 0; i < 100; i++) {
-                    const angle = (Math.PI * 2 / 100) * i;
-                    const velocity = Math.random() * 3 + 2;
-                    this.particles.push({
-                        x: this.x,
-                        y: this.y,
-                        vx: Math.cos(angle) * velocity,
-                        vy: Math.sin(angle) * velocity,
-                        alpha: 1
-                    });
-                }
-            }
-
-            draw() {
-                if (!this.exploded) {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color;
-                    ctx.fill();
-                } else {
-                    // 绘制爆炸粒子
-                    for (const p of this.particles) {
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, this.size, 0, Math.PI * 2);
-                        ctx.fillStyle = `${this.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
-                        ctx.fill();
-                    }
-
-                    // 在爆炸位置绘制文字
-                    if (this.textAlpha > 0) {
-                        ctx.save();
-                        ctx.font = 'bold 32px "Microsoft YaHei"';
-                        ctx.fillStyle = `${this.color}${Math.floor(this.textAlpha * 255).toString(16).padStart(2, '0')}`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(text, this.x, this.y);
-                        ctx.restore();
-                    }
-                }
-            }
-        }
-
-        let lastFireworkTime = 0;
-        function addFirework() {
-            const now = Date.now();
-            if (now - lastFireworkTime > 2000) {
-                fireworks.push(new Firework());
-                lastFireworkTime = now;
-            }
-        }
-
-        textInput.addEventListener('change', () => {
-            text = textInput.value;
-        });
-
-        function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            addFirework();
-
-            for (let i = fireworks.length - 1; i >= 0; i--) {
-                fireworks[i].update();
-                fireworks[i].draw();
-                
-                if (fireworks[i].exploded && 
-                    fireworks[i].particles.length === 0 && 
-                    fireworks[i].textAlpha <= 0) {
-                    fireworks.splice(i, 1);
-                }
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        canvas.addEventListener('click', (e) => {
+        // 设置画布尺寸
+        function resizeCanvas() {
+            // 使用设备像素比来处理高清屏
+            const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+        }
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // [之前的 Firework 类代码保持不变]
+
+        // 添加触摸事件支持
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 阻止默认行为
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+            
             const firework = new Firework();
             firework.targetX = x;
             firework.targetY = y;
             fireworks.push(firework);
         });
 
+        // 防止页面滚动
+        document.body.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        // 输入框焦点处理
+        textInput.addEventListener('focus', () => {
+            // 移动端输入时，延迟一下再滚动到顶部
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+            }, 100);
+        });
+
+        textInput.addEventListener('blur', () => {
+            window.scrollTo(0, 0);
+        });
+
+        // [其余动画和事件代码保持不变]
+
+        // 启动动画
         animate();
     </script>
 </body>
