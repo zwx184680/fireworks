@@ -13,77 +13,137 @@
         canvas {
             display: block;
         }
+        #settingsButton {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 100;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        #settingsPanel {
+            position: fixed;
+            right: 20px;
+            top: 70px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 100;
+        }
+        #textInput {
+            width: 200px;
+            padding: 8px;
+            margin: 10px 0;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid white;
+            border-radius: 5px;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
+    <button id="settingsButton">自定义文字</button>
+    <div id="settingsPanel">
+        <input type="text" id="textInput" value="2025新年快乐" maxlength="20">
+    </div>
 
     <script>
-        // 获取canvas元素
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        // ... [保持之前的canvas设置代码不变] ...
 
-        // 设置canvas尺寸
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        let customText = "2025新年快乐";
 
-        // 存储所有烟花
-        const fireworks = [];
-
-        // 烟花类
         class Firework {
-            constructor() {
-                // 起始位置（底部随机位置）
+            constructor(isText = false) {
                 this.x = Math.random() * canvas.width;
                 this.y = canvas.height;
-                
-                // 目标位置（上半部分随机位置）
-                this.targetX = Math.random() * canvas.width;
-                this.targetY = Math.random() * (canvas.height * 0.5);
-                
-                // 颜色
+                this.targetX = isText ? canvas.width / 2 : Math.random() * canvas.width;
+                this.targetY = isText ? canvas.height * 0.3 : Math.random() * (canvas.height * 0.5);
                 this.color = `hsl(${Math.random() * 360}, 50%, 50%)`;
-                
-                // 粒子大小
                 this.size = 2;
-                
-                // 速度
                 this.speed = 2;
-                
-                // 重力
                 this.gravity = 0.1;
-                
-                // 计算移动方向
-                const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-                this.velocityX = Math.cos(angle) * this.speed;
-                this.velocityY = Math.sin(angle) * this.speed;
-                
-                // 是否已爆炸
+                this.angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+                this.velocityX = Math.cos(this.angle) * this.speed;
+                this.velocityY = Math.sin(this.angle) * this.speed;
                 this.exploded = false;
-                
-                // 爆炸后的粒子
                 this.particles = [];
+                this.isText = isText;
+            }
+
+            explode() {
+                this.exploded = true;
+                if (this.isText) {
+                    // 创建文字粒子
+                    const fontSize = 60;
+                    ctx.font = `${fontSize}px "Microsoft YaHei"`;
+                    const textWidth = ctx.measureText(customText).width;
+                    const particles = 200;
+                    
+                    for (let i = 0; i < particles; i++) {
+                        const angle = (Math.PI * 2 / particles) * i;
+                        const radius = Math.random() * textWidth / 2;
+                        const x = Math.cos(angle) * radius;
+                        const y = Math.sin(angle) * radius;
+                        
+                        this.particles.push({
+                            x: this.x,
+                            y: this.y,
+                            targetX: this.x + x,
+                            targetY: this.y + y,
+                            alpha: 1,
+                            progress: 0
+                        });
+                    }
+                } else {
+                    // 普通烟花粒子
+                    for (let i = 0; i < 100; i++) {
+                        const angle = (Math.PI * 2 / 100) * i;
+                        const velocity = Math.random() * 3 + 2;
+                        this.particles.push({
+                            x: this.x,
+                            y: this.y,
+                            vx: Math.cos(angle) * velocity,
+                            vy: Math.sin(angle) * velocity,
+                            alpha: 1
+                        });
+                    }
+                }
             }
 
             update() {
                 if (!this.exploded) {
-                    // 移动烟花
                     this.x += this.velocityX;
                     this.y += this.velocityY;
                     
-                    // 检查是否到达目标位置
                     const distance = Math.hypot(this.targetX - this.x, this.targetY - this.y);
                     if (distance < 5) {
                         this.explode();
                     }
                 } else {
-                    // 更新爆炸粒子
                     for (let i = this.particles.length - 1; i >= 0; i--) {
                         const p = this.particles[i];
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.vy += this.gravity;
-                        p.alpha -= 0.01;
+                        if (this.isText) {
+                            // 文字粒子更新
+                            p.progress += 0.02;
+                            p.x = this.x + (p.targetX - this.x) * p.progress;
+                            p.y = this.y + (p.targetY - this.y) * p.progress + 
+                                 this.gravity * p.progress * p.progress * 30;
+                            p.alpha = Math.max(0, 1 - p.progress);
+                        } else {
+                            // 普通粒子更新
+                            p.x += p.vx;
+                            p.y += p.vy;
+                            p.vy += this.gravity;
+                            p.alpha -= 0.01;
+                        }
                         
                         if (p.alpha <= 0) {
                             this.particles.splice(i, 1);
@@ -92,82 +152,36 @@
                 }
             }
 
-            explode() {
-                this.exploded = true;
-                // 创建爆炸粒子
-                for (let i = 0; i < 100; i++) {
-                    const angle = (Math.PI * 2 / 100) * i;
-                    const velocity = Math.random() * 3 + 2;
-                    this.particles.push({
-                        x: this.x,
-                        y: this.y,
-                        vx: Math.cos(angle) * velocity,
-                        vy: Math.sin(angle) * velocity,
-                        alpha: 1
-                    });
-                }
-            }
-
-            draw() {
-                if (!this.exploded) {
-                    // 绘制上升的烟花
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color;
-                    ctx.fill();
-                } else {
-                    // 绘制爆炸粒子
-                    for (const p of this.particles) {
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, this.size, 0, Math.PI * 2);
-                        ctx.fillStyle = `${this.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
-                        ctx.fill();
-                    }
-                }
-            }
+            // ... [保持draw方法不变] ...
         }
 
         // 自动发射烟花
         let lastFireworkTime = 0;
+        let isTextFirework = true;
+
         function addFirework() {
             const now = Date.now();
-            if (now - lastFireworkTime > 1000) { // 每秒发射一个烟花
-                fireworks.push(new Firework());
+            if (now - lastFireworkTime > 2000) {
+                fireworks.push(new Firework(isTextFirework));
+                isTextFirework = !isTextFirework;
                 lastFireworkTime = now;
             }
         }
 
-        // 动画循环
-        function animate() {
-            // 添加半透明黑色层制造拖尾效果
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 设置面板控制
+        const settingsButton = document.getElementById('settingsButton');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const textInput = document.getElementById('textInput');
 
-            // 添加新烟花
-            addFirework();
-
-            // 更新和绘制所有烟花
-            for (let i = fireworks.length - 1; i >= 0; i--) {
-                fireworks[i].update();
-                fireworks[i].draw();
-                
-                // 移除已完全消失的烟花
-                if (fireworks[i].exploded && fireworks[i].particles.length === 0) {
-                    fireworks.splice(i, 1);
-                }
-            }
-
-            // 继续动画循环
-            requestAnimationFrame(animate);
-        }
-
-        // 点击发射烟花
-        canvas.addEventListener('click', (e) => {
-            fireworks.push(new Firework());
+        settingsButton.addEventListener('click', () => {
+            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
         });
 
-        // 开始动画
-        animate();
+        textInput.addEventListener('change', () => {
+            customText = textInput.value || "2025新年快乐";
+        });
+
+        // ... [保持其他代码不变] ...
     </script>
 </body>
 </html>
